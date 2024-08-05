@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { cardService } from '@/services/cardService';
 import { db } from '@/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 export interface Card {
@@ -129,14 +129,15 @@ export const useGameStore = defineStore('gameStore', () => {
 
     if (auth.currentUser) {
       const userDoc = doc(db, `users/${auth.currentUser.uid}/gameState/state`);
-      const docSnap = await getDoc(userDoc);
-      if (docSnap.exists()) {
-        const savedState = docSnap.data() as State;
-        state.value = {
-          ...state.value,
-          ...savedState,
-        };
-      }
+      onSnapshot(userDoc, (docSnap) => {
+        if (docSnap.exists()) {
+          const savedState = docSnap.data() as State;
+          state.value = {
+            ...state.value,
+            ...savedState,
+          };
+        }
+      });
     } else {
       const savedState = localStorage.getItem('gameState');
       if (savedState) {

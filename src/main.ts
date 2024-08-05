@@ -4,7 +4,7 @@ import router from './router';
 import { createPinia } from 'pinia';
 import { IonicVue } from '@ionic/vue';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-
+import { requestForToken, onMessageListener } from '@/firebase';
 
 
 // Core CSS required for Ionic components to work properly
@@ -82,4 +82,28 @@ onAuthStateChanged(auth, (user) => {
     app.mount('#app');
     appInitialized = true;
   }
+});
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    .then((registration) => {
+      console.log('Service Worker registered with scope:', registration.scope);
+    })
+    .catch((err) => {
+      console.error('Service Worker registration failed:', err);
+    });
+}
+
+requestForToken();
+
+onMessageListener().then((payload:any) => {
+  console.log('Message received. ', payload);
+  // Customize notification here
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: '/firebase-logo.png'
+  };
+
+  new Notification(notificationTitle, notificationOptions);
 });
