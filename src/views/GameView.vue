@@ -20,9 +20,9 @@
       <div v-if="loading" class="loading">
         <ion-spinner />
       </div>
-      <div v-else :class="`game-grid grid${gridSize}`">
+      <div v-else class="game-grid">
         <CardComponent :card="card" v-for="(card, index) in state.cards" :key="`${card.set}-${card.name}-${index}`"
-          @click="handleCardClick(index)" />
+          :class="`grid${gridSize}`" @click="handleCardClick(index)" />
       </div>
     </ion-content>
 
