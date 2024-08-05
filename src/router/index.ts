@@ -1,39 +1,61 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
-import { RouteRecordRaw } from 'vue-router';
-import TabsPage from '../views/TabsPage.vue'
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import HomeView from '@/views/HomeView.vue';
+import GameView from '@/views/GameView.vue';
+import LoginView from '@/views/LoginView.vue';
+import SignUpView from '@/views/SignUpView.vue';
+import StatisticsView from '@/views/StatisticsView.vue';
 
-const routes: Array<RouteRecordRaw> = [
+const routes = [
   {
     path: '/',
-    redirect: '/tabs/tab1'
+    redirect: '/home',
   },
   {
-    path: '/tabs/',
-    component: TabsPage,
-    children: [
-      {
-        path: '',
-        redirect: '/tabs/tab1'
-      },
-      {
-        path: 'tab1',
-        component: () => import('@/views/Tab1Page.vue')
-      },
-      {
-        path: 'tab2',
-        component: () => import('@/views/Tab2Page.vue')
-      },
-      {
-        path: 'tab3',
-        component: () => import('@/views/Tab3Page.vue')
-      }
-    ]
-  }
-]
+    path: '/home',
+    component: HomeView,
+  },
+  {
+    path: '/game',
+    component: GameView,
+    meta: {
+      requiresAuth: true,
+    },
+  },
+  {
+    path: '/login',
+    component: LoginView,
+  },
+  {
+    path: '/signup',
+    component: SignUpView,
+  },
+  {
+    path: '/statistics',
+    component: StatisticsView,
+  },
+];
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes
-})
+  history: createWebHistory('/'),
+  routes,
+});
 
-export default router
+router.beforeEach((to, from, next) => {
+  const auth = getAuth();
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  
+  if (requiresAuth) {
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        next();
+      } else {
+        next('/login');
+      }
+    });
+  } else {
+    next();
+  }
+});
+
+export default router;
