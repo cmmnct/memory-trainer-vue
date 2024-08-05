@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { cardService } from '@/services/cardService';
 import { db } from '@/firebase';
-import { doc, setDoc, getDoc} from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
 export interface Card {
@@ -23,7 +23,7 @@ export interface State {
   secondCard: Card | null;
   lockBoard: boolean;
   attempts: number;
-  gridSize?: number;
+  gridSize: number;
   cards: Card[];
   results: Result[];
 }
@@ -40,7 +40,7 @@ export const useGameStore = defineStore('gameStore', () => {
     secondCard: null,
     lockBoard: false,
     attempts: 0,
-    gridSize: undefined,
+    gridSize: 16, // Standaard gridSize
     cards: [],
     results: [],
   });
@@ -108,8 +108,8 @@ export const useGameStore = defineStore('gameStore', () => {
     const result: Result = {
       date: new Date().toISOString(),
       attempts: state.value.attempts,
-      gridSize: state.value.gridSize!,
-      score: Math.max(0, state.value.gridSize! * 2 - state.value.attempts),
+      gridSize: state.value.gridSize,
+      score: Math.max(0, state.value.gridSize * 2 - state.value.attempts),
     };
     state.value.results.push(result);
     saveState();

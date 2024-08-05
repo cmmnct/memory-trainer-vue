@@ -20,9 +20,14 @@
       <div v-if="loading" class="loading">
         <ion-spinner />
       </div>
-      <div v-else class="game-grid">
-        <CardComponent :card="card" v-for="(card, index) in state.cards" :key="`${card.set}-${card.name}-${index}`"
-          :class="`grid${gridSize}`" @click="handleCardClick(index)" />
+      <div class="game-grid">
+        <CardComponent 
+          v-for="(card, index) in state.cards" 
+          :key="`${card.set}-${card.name}-${index}`"
+          :card="card"
+          :class="`grid${state.gridSize}`"
+          @click="handleCardClick(index)" 
+        />
       </div>
     </ion-content>
 
@@ -43,7 +48,6 @@ import GridSizeSelector from '@/components/GridSizeSelector.vue';
 const route = useRoute();
 const router = useRouter();
 const gameStore = useGameStore();
-const gridSize = ref<number>(parseInt(route.query.gridSize as string) || gameStore.state.gridSize || 16);
 const loading = ref(true);
 const showUserSettings = ref(false);
 const showGridSizeSelector = ref(false);
@@ -53,15 +57,14 @@ async function initializeGame() {
     await gameStore.loadState();
   }
   if (!gameStore.state.cards.length) {
-    await gameStore.initializeCards(gridSize.value);
+    await gameStore.initializeCards(gameStore.state.gridSize);
   }
   loading.value = false;
 }
 
 async function handleGridSizeChange(size: number) {
-  gridSize.value = size;
   loading.value = true;
-  await gameStore.initializeCards(gridSize.value);
+  await gameStore.initializeCards(size);
   loading.value = false;
 }
 
@@ -88,7 +91,6 @@ onMounted(async () => {
 });
 
 watch(route, async () => {
-  gridSize.value = parseInt(route.query.gridSize as string) || gameStore.state.gridSize || 16;
   await initializeGame();
 });
 
