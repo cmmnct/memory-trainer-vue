@@ -30,7 +30,7 @@ import './theme/variables.css';
 import { IonButtons, IonIcon, IonList, IonItem, IonPage, IonHeader, IonToolbar, IonTitle, IonContent, IonButton, IonInput, IonSelect, IonSelectOption, IonGrid, IonRow, IonCol, IonSpinner, IonModal,IonLabel, IonDatetime, IonAvatar } from '@ionic/vue';
 
 import { addIcons } from 'ionicons';
-import { personCircleOutline, gridOutline, barChartOutline } from 'ionicons/icons';
+import { personCircleOutline, gridOutline, barChartOutline, personAddOutline } from 'ionicons/icons';
 
 const pinia = createPinia();
 
@@ -67,6 +67,7 @@ addIcons({
   'person-circle-outline': personCircleOutline,
   'grid-outline': gridOutline,
   'bar-chart-outline': barChartOutline,
+  'person-add-outline' : personAddOutline
 });
 
 const auth = getAuth();

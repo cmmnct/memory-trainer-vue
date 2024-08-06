@@ -5,6 +5,7 @@ import GameView from '@/views/GameView.vue';
 import LoginView from '@/views/LoginView.vue';
 import SignUpView from '@/views/SignUpView.vue';
 import StatisticsView from '@/views/StatisticsView.vue';
+import InvitationsView from '@/views/InvitationsView.vue';
 
 const routes = [
   {
@@ -33,6 +34,10 @@ const routes = [
   {
     path: '/statistics',
     component: StatisticsView,
+  },
+  {
+    path: '/invitations',
+    component: InvitationsView,
   },
 ];
 

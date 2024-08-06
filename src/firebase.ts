@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence, onAuthStateChanged  } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, onMessage, getToken } from 'firebase/messaging';
@@ -14,10 +14,12 @@ const firebaseConfig = {
     appId: "1:1089085032321:web:f7680e66059670f1db8a80"
   };
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+  
+  export { auth, db, storage, onAuthStateChanged };
 
 // Stel de persistentie in (local storage)
 setPersistence(auth, browserLocalPersistence).catch((error) => {

@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { cardService } from '@/services/cardService';
-import { db } from '@/firebase';
-import { doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { db, auth, onAuthStateChanged } from '@/firebase';
+import { doc, setDoc, onSnapshot, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export interface Card {
   name: string;
@@ -16,9 +15,18 @@ export interface Result {
   attempts: number;
   gridSize: number;
   score: number;
+  playerId: string;
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  score: number;
 }
 
 export interface State {
+  players: Player[];
+  currentPlayerId: string;
   firstCard: Card | null;
   secondCard: Card | null;
   lockBoard: boolean;
@@ -36,6 +44,8 @@ export interface CardSet {
 
 export const useGameStore = defineStore('gameStore', () => {
   const state = ref<State>({
+    players: [],
+    currentPlayerId: '',
     firstCard: null,
     secondCard: null,
     lockBoard: false,
@@ -45,10 +55,10 @@ export const useGameStore = defineStore('gameStore', () => {
     results: [],
   });
 
-  const auth = getAuth();
+
   let stateLoaded = false;
 
-  const initializeCards = async (gridSize: number) => {
+  const initializeGame = async (gridSize: number, players: Player[], gameId: string) => {
     const cards = await cardService.initializeCards(gridSize);
     state.value.cards = cards;
     state.value.gridSize = gridSize;
@@ -56,10 +66,12 @@ export const useGameStore = defineStore('gameStore', () => {
     state.value.lockBoard = false;
     state.value.firstCard = null;
     state.value.secondCard = null;
-    saveState();
+    state.value.players = players;
+    state.value.currentPlayerId = players[0].id;
+    await saveState(gameId);
   };
 
-  const handleCardClick = (index: number, updateCallback: () => void) => {
+  const handleCardClick = async (index: number, gameId: string, updateCallback: () => void) => {
     const clickedCard = state.value.cards[index];
     if (state.value.lockBoard || clickedCard === state.value.firstCard || clickedCard.exposed) return;
 
@@ -68,7 +80,7 @@ export const useGameStore = defineStore('gameStore', () => {
 
     if (!state.value.firstCard) {
       state.value.firstCard = clickedCard;
-      saveState();
+      await saveState(gameId);
       return;
     }
 
@@ -78,10 +90,13 @@ export const useGameStore = defineStore('gameStore', () => {
     updateCallback();
 
     if (state.value.firstCard.set === state.value.secondCard.set) {
+      const currentPlayer = state.value.players.find(player => player.id === state.value.currentPlayerId);
+      if (currentPlayer) currentPlayer.score++;
+
       if (!state.value.cards.some(card => !card.exposed)) {
         setTimeout(() => {
           alert("Gefeliciteerd! Je hebt alle kaarten gevonden.");
-          addResult();
+          addResult(gameId);
         }, 1000);
       }
       resetState();
@@ -94,77 +109,76 @@ export const useGameStore = defineStore('gameStore', () => {
         updateCallback();
       }, 1000);
     }
-    saveState();
+
+    const currentPlayerIndex = state.value.players.findIndex(player => player.id === state.value.currentPlayerId);
+    state.value.currentPlayerId = state.value.players[(currentPlayerIndex + 1) % state.value.players.length].id;
+    await saveState(gameId);
   };
 
   const resetState = () => {
     state.value.firstCard = null;
     state.value.secondCard = null;
     state.value.lockBoard = false;
-    saveState();
   };
 
-  const addResult = () => {
+  const addResult = async (gameId: string) => {
     const result: Result = {
       date: new Date().toISOString(),
       attempts: state.value.attempts,
       gridSize: state.value.gridSize,
       score: Math.max(0, state.value.gridSize * 2 - state.value.attempts),
+      playerId: state.value.currentPlayerId
     };
+    const gameDoc = doc(db, `games/${gameId}`);
+    await updateDoc(gameDoc, {
+      results: [...state.value.results, result]
+    });
     state.value.results.push(result);
-    saveState();
   };
 
-  const saveState = async () => {
-    if (auth.currentUser) {
-      const userDoc = doc(db, `users/${auth.currentUser.uid}/gameState/state`);
-      await setDoc(userDoc, state.value, { merge: true });
-    } else {
-      localStorage.setItem('gameState', JSON.stringify(state.value));
-    }
+  const saveState = async (gameId: string) => {
+    const gameDoc = doc(db, `games/${gameId}`);
+    await setDoc(gameDoc, state.value, { merge: true });
   };
 
-  const loadState = async () => {
+  const loadState = async (gameId: string) => {
     if (stateLoaded) return;
 
-    if (auth.currentUser) {
-      const userDoc = doc(db, `users/${auth.currentUser.uid}/gameState/state`);
-      onSnapshot(userDoc, (docSnap) => {
-        if (docSnap.exists()) {
-          const savedState = docSnap.data() as State;
-          state.value = {
-            ...state.value,
-            ...savedState,
-          };
-        }
-      });
-    } else {
-      const savedState = localStorage.getItem('gameState');
-      if (savedState) {
-        state.value = {
-          ...state.value,
-          ...JSON.parse(savedState),
-        };
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const gameDoc = doc(db, `games/${gameId}`);
+        onSnapshot(gameDoc, (docSnap) => {
+          if (docSnap.exists()) {
+            const savedState = docSnap.data() as State;
+            state.value = {
+              ...state.value,
+              ...savedState,
+            };
+          }
+        });
+        stateLoaded = true;
       }
-    }
-    stateLoaded = true;
+    });
   };
 
   const fetchResults = async () => {
     if (auth.currentUser) {
-      const userDoc = doc(db, `users/${auth.currentUser.uid}/gameState/state`);
-      const docSnap = await getDoc(userDoc);
-      if (docSnap.exists()) {
-        const savedState = docSnap.data() as State;
-        state.value.results = savedState.results;
-        console.log('Fetched results:', state.value.results);
-      }
+      const results: Result[] = [];
+      const q = query(collection(db, 'games'), where('players', 'array-contains', auth.currentUser.uid));
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.results) {
+          results.push(...data.results);
+        }
+      });
+      state.value.results = results;
     }
   };
 
   return {
     state,
-    initializeCards,
+    initializeGame,
     handleCardClick,
     resetState,
     addResult,
